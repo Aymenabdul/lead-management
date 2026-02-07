@@ -42,7 +42,7 @@ $user = AuthMiddleware::requireAuth();
                         <tr>
                             <th>Name</th>
                             <th>Contact Info</th>
-                            <th>Platform</th>
+                            <th>Assignee</th>
                             <th>Service</th>
                             <th>Payment Status</th>
                             <th>Converted Date</th>
@@ -127,7 +127,12 @@ $user = AuthMiddleware::requireAuth();
                             <div style="font-size: 0.9em; color: var(--text-main);">${lead.phone}</div>
                             <div style="font-size: 0.8em; color: var(--text-muted);">${lead.email || '-'}</div>
                         </td>
-                        <td>${lead.platform}</td>
+                        <td>
+                            ${lead.assignee_name
+                            ? `<span class="badge badge-success" style="font-size: 0.8em;"><i class="fa-solid fa-user-check" style="margin-right: 4px;"></i>${lead.assignee_name}</span>`
+                            : `<span class="badge badge-secondary" style="font-size: 0.8em; opacity: 0.7;">Unassigned</span>`
+                        }
+                        </td>
                         <td>${lead.service || '-'}</td>
                         <td>
                             <span class="badge ${badgeClass}" 

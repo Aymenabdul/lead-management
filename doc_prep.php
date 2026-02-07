@@ -567,6 +567,69 @@ $technicalTeam = $techStmt->fetchAll();
             border-bottom-color: var(--border);
             border-right-color: var(--border);
         }
+
+        .list-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .list-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .list-item:hover {
+            border-color: var(--primary);
+            background: #f0fdf4;
+            transform: translateY(-1px);
+        }
+
+        .list-item input[type="radio"] {
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 2px solid var(--text-muted);
+            border-radius: 50%;
+            margin-right: 1rem;
+            position: relative;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .list-item input[type="radio"]:checked {
+            border-color: var(--primary);
+            background-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+        }
+
+        .list-item input[type="radio"]:checked::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .list-item.selected {
+            border-color: var(--primary);
+            background: #f0fdf4;
+            box-shadow: var(--shadow-sm);
+        }
     </style>
 </head>
 
@@ -595,16 +658,12 @@ $technicalTeam = $techStmt->fetchAll();
                     </span></h1>
             </div>
             <div style="display: flex; gap: 1rem; align-items: center;">
-                <div class="assign-container">
-                    <span class="toolbar-label" style="display:none">Assign:</span>
-                    <select class="assign-dropdown" id="assigneeDropdown" onchange="updateAssignee()">
-                        <option value="">Select Technical Associate</option>
-                        <?php foreach ($technicalTeam as $tech): ?>
-                            <option value="<?php echo $tech['id']; ?>">
-                                <?php echo htmlspecialchars($tech['username']); ?> (ID: <?php echo $tech['id']; ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="assign-container"
+                    style="background: transparent; border: none; box-shadow: none; padding: 0;">
+                    <button class="btn btn-outline" onclick="openAssignModal()" id="assignButton">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span id="assignButtonText">Assign To</span>
+                    </button>
                 </div>
                 <button class="btn btn-primary" onclick="saveSheet()">
                     <i class="fa-solid fa-save"></i> Save
@@ -665,7 +724,57 @@ $technicalTeam = $techStmt->fetchAll();
                 </button>
             </div>
         </div>
+        </div>
     </main>
+
+    <!-- Assign Modal -->
+    <div class="modal" id="assignModal">
+        <div class="modal-content" style="max-width: 450px;">
+            <button class="close-modal" onclick="closeModal('assignModal')">&times;</button>
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem; color: var(--text);">Select Associate</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem;">Choose a technical team
+                member to assign this document to.</p>
+
+            <div class="list-group">
+                <label class="list-item" onclick="selectRadio(this)">
+                    <input type="radio" name="assignee" value="" onchange="handleAssigneeSelect(this)">
+                    <div
+                        style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; color: var(--text-muted);">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-weight: 600; font-size: 1rem;">Unassigned (Me)</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">Keep ownership</span>
+                    </div>
+                </label>
+                <?php foreach ($technicalTeam as $tech): ?>
+                    <label class="list-item" onclick="selectRadio(this)">
+                        <input type="radio" name="assignee" value="<?php echo $tech['id']; ?>"
+                            data-name="<?php echo htmlspecialchars($tech['username']); ?>"
+                            onchange="handleAssigneeSelect(this)">
+                        <div
+                            style="width: 40px; height: 40px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; color: var(--primary);">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <span
+                                style="font-weight: 600; font-size: 1rem;"><?php echo htmlspecialchars($tech['username']); ?></span>
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">Associate ID:
+                                <?php echo $tech['id']; ?></span>
+                        </div>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+
+            <div
+                style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                <button class="btn" style="color: var(--text-muted);"
+                    onclick="closeModal('assignModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmAssignee()"
+                    style="padding-left: 2rem; padding-right: 2rem;">Confirm Assignment</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const IS_PROJECT = <?php echo $isProject ? 'true' : 'false'; ?>;
@@ -699,13 +808,13 @@ $technicalTeam = $techStmt->fetchAll();
 
                 if (result.data && result.data.sheets) {
                     sheets = result.data.sheets;
-                    // Dont overwrite currentAssignee if we explicitly requested one, 
-                    // unless we want to sync with DB. 
-                    // But if we are switching TO a user, we want to see their data.
+
                     if (assigneeId) {
                         currentAssignee = assigneeId;
                     } else {
-                        currentAssignee = result.data.assignee || null;
+                        // Use the top-level assignee ID from the DB column (source of truth), 
+                        // fallback to JSON blob if needed.
+                        currentAssignee = result.assignee || result.data.assignee || null;
                     }
                     cellMeta = result.data.cellMeta || {};
                 } else {
@@ -715,12 +824,12 @@ $technicalTeam = $techStmt->fetchAll();
                         data: Array(200).fill().map(() => Array(200).fill(''))
                     }];
                     cellMeta = {};
+                    // Even if no data blob, we might have an assignee in the DB record
+                    currentAssignee = result.assignee || null;
                 }
 
-                // Set assignee dropdown
-                if (currentAssignee) {
-                    document.getElementById('assigneeDropdown').value = currentAssignee;
-                }
+                // Set assignee dropdown / button UI
+                updateAssignButtonUI(currentAssignee);
 
                 renderSheetTabs();
                 loadSheet(0);
@@ -1026,32 +1135,85 @@ $technicalTeam = $techStmt->fetchAll();
             showToast('Formatting cleared', 'success');
         }
 
-        async function updateAssignee() {
-            const newAssignee = document.getElementById('assigneeDropdown').value;
+        // Modal functions
+        function openAssignModal() {
+            // Pre-select current assignee and styling
+            const radios = document.getElementsByName('assignee');
+            for (const radio of radios) {
+                const label = radio.closest('.list-item');
+                label.classList.remove('selected');
 
-            if (newAssignee !== currentAssignee) {
-                const result = await Swal.fire({
-                    title: 'Switch Assignee View?',
-                    text: 'Do you want to save current changes before switching?',
-                    icon: 'question',
-                    showDenyButton: true,
-                    showCancelButton: true,
-                    confirmButtonText: 'Save & Switch',
-                    denyButtonText: 'Switch without Saving',
-                    confirmButtonColor: '#10b981',
-                    denyButtonColor: '#f59e0b'
-                });
-
-                if (result.isConfirmed) {
-                    await saveSheet(); // Save to OLD assignee
-                    loadData(newAssignee); // Load NEW assignee
-                } else if (result.isDenied) {
-                    loadData(newAssignee);
-                } else {
-                    // Cancel - revert dropdown
-                    document.getElementById('assigneeDropdown').value = currentAssignee || "";
+                if (radio.value == (currentAssignee || '')) {
+                    radio.checked = true;
+                    label.classList.add('selected');
                 }
             }
+            document.getElementById('assignModal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function selectRadio(label) {
+            // Helper to ensure clicking anywhere on the card checks the radio
+            const radio = label.querySelector('input[type="radio"]');
+            radio.checked = true;
+            handleAssigneeSelect(radio);
+        }
+
+        let tempAssignee = null;
+        let tempAssigneeName = null;
+
+        function handleAssigneeSelect(radio) {
+            tempAssignee = radio.value;
+            tempAssigneeName = radio.dataset.name || 'Unassigned';
+
+            // Visual Update
+            document.querySelectorAll('.list-item').forEach(el => el.classList.remove('selected'));
+            radio.closest('.list-item').classList.add('selected');
+        }
+
+        async function confirmAssignee() {
+            // Logic to update currentAssignee
+            // If user didn't change anything, tempAssignee might be null if they didnt click anything, 
+            // so we should look at checked radio
+            const checked = document.querySelector('input[name="assignee"]:checked');
+            if (checked) {
+                currentAssignee = checked.value;
+                const name = checked.dataset.name || 'Unassigned';
+                updateAssignButtonUI(currentAssignee, name);
+
+                // Immediately save the sheet to persist the assignment
+                await saveSheet();
+            }
+            closeModal('assignModal');
+        }
+
+        function updateAssignButtonUI(id, name = null) {
+            const btnText = document.getElementById('assignButtonText');
+            // If name is found in PHP list we could use it, but keeping it simple
+            if (id) {
+                // Try to find name if not passed
+                if (!name) {
+                    const radio = document.querySelector(`input[name="assignee"][value="${id}"]`);
+                    if (radio) name = radio.dataset.name;
+                }
+                btnText.textContent = `Assigned: ${name || id}`;
+                document.getElementById('assignButton').classList.add('btn-primary');
+                document.getElementById('assignButton').classList.remove('btn-outline');
+                document.getElementById('assignButton').style.background = '#eff6ff';
+                document.getElementById('assignButton').style.color = '#2563eb';
+                document.getElementById('assignButton').style.borderColor = '#bfdbfe';
+            } else {
+                btnText.textContent = 'Assign To';
+                document.getElementById('assignButton').className = 'btn btn-outline';
+                document.getElementById('assignButton').style = ''; // Reset inline styles
+            }
+        }
+
+        function updateAssignee() {
+            // Deprecated by modal logic, kept placeholder if needed
         }
 
         async function saveSheet() {

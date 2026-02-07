@@ -383,10 +383,11 @@ if (!$associate_id) {
                                 <th>Name</th>
                                 <th>Phone</th>
                                 <th>Email</th>
-                                <th>Platform</th>
+                                <th>Assignee</th>
                                 <th>Service</th>
                                 <th>Payment Status</th>
                                 <th>Converted Date</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="convertedTableBody">
@@ -488,10 +489,25 @@ if (!$associate_id) {
                         </td>
                         <td>${lead.phone}</td>
                         <td style="color: var(--text-muted);">${lead.email || '-'}</td>
-                        <td><span class="badge badge-new" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">${lead.platform}</span></td>
+                        <td>
+                            ${lead.assignee_name
+                            ? `<span class="badge badge-success" style="font-size: 0.8em;"><i class="fa-solid fa-user-check" style="margin-right: 4px;"></i>${lead.assignee_name}</span>`
+                            : `<span class="badge badge-secondary" style="font-size: 0.8em; opacity: 0.7;">Unassigned</span>`
+                        }
+                        </td>
                         <td style="font-size: 0.9em;">${lead.service}</td>
                         <td>${paymentBadge}</td>
                         <td style="color: var(--text-muted); font-size: 0.9em;">${new Date(lead.converted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <a href="doc_prep.php?id=${lead.id}" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; text-decoration: none;" title="Open Sheet">
+                                    <i class="fa-solid fa-table"></i>
+                                </a>
+                                <a href="word_prep.php?id=${lead.id}" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; text-decoration: none;" title="Open Word Doc">
+                                    <i class="fa-solid fa-file-word"></i>
+                                </a>
+                            </div>
+                        </td>
                     `;
                     tbody.appendChild(tr);
                 });

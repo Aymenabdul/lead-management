@@ -196,7 +196,9 @@ if ($user['role'] !== 'technical') {
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // Calculate days left based on status
+        // Format date for display
+        const CURRENT_USER_ID = <?php echo $user['user_id']; ?>;
+
         function calculateDaysLeft(endDate, status) {
             // For completed projects, show on-time message
             if (status === 'Completed') {
@@ -386,10 +388,16 @@ if ($user['role'] !== 'technical') {
                             </td>
                             <td>${getStatusDropdown(project.id, project.status)}</td>
                             <td>
-                                <a href="${sheetUrl}" class="sheet-btn" style="text-decoration: none; display: inline-block;">
-                                    <i class="fa-solid fa-file-alt"></i>
-                                    Open Sheet
-                                </a>
+                                ${project.user_id == CURRENT_USER_ID ?
+                            `<a href="${sheetUrl}" class="sheet-btn" style="text-decoration: none; display: inline-block;">
+                                        <i class="fa-solid fa-file-alt"></i>
+                                        Open Sheet
+                                    </a>` :
+                            `<button class="sheet-btn" style="background: #cbd5e1; cursor: not-allowed; box-shadow: none;" disabled title="Not assigned to you">
+                                        <i class="fa-solid fa-lock"></i>
+                                        Open Sheet
+                                    </button>`
+                        }
                             </td>
                         </tr>
                     `;

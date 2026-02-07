@@ -37,6 +37,22 @@ if ($method === 'GET') {
             http_response_code(500);
             echo json_encode(['error' => $e->getMessage()]);
         }
+    } elseif (isset($_GET['mode']) && $_GET['mode'] === 'available_leads') {
+        // Get converted leads that are not yet assigned as projects
+        try {
+            $stmt = $pdo->query("
+                SELECT c.name, c.service 
+                FROM converted_leads c
+                LEFT JOIN projects p ON c.name = p.project_name COLLATE utf8mb4_unicode_ci
+                WHERE p.id IS NULL
+                ORDER BY c.name ASC
+            ");
+            $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode($leads);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
     } else {
         // Get technical associates list with project count
         try {

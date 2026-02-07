@@ -14,7 +14,16 @@ if ($method === 'GET') {
         // Admins see all converted leads, associates see only their own
         if ($user['role'] === 'admin') {
             $stmt = $pdo->query("
-                SELECT cl.*, u.full_name as associate_name, u.username as associate_username 
+                SELECT cl.*, u.full_name as associate_name, u.username as associate_username,
+                       (
+                            SELECT au.full_name 
+                            FROM lead_requirements lr
+                            JOIN users au ON lr.assignee_id = au.id
+                            WHERE lr.converted_lead_id = cl.id 
+                               OR lr.converted_lead_id = (SELECT id FROM projects WHERE project_name = cl.name COLLATE utf8mb4_unicode_ci LIMIT 1)
+                            ORDER BY lr.id DESC
+                            LIMIT 1
+                       ) as assignee_name
                 FROM converted_leads cl 
                 LEFT JOIN users u ON cl.user_id = u.id 
                 ORDER BY cl.converted_at DESC

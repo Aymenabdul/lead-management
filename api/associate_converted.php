@@ -28,10 +28,18 @@ if (!$user_id) {
 
 try {
     $stmt = $pdo->prepare("
-        SELECT id, name, phone, email, platform, service, payment_status, converted_at 
-        FROM converted_leads 
-        WHERE user_id = :user_id 
-        ORDER BY converted_at DESC
+        SELECT cl.id, cl.name, cl.phone, cl.email, cl.platform, cl.service, cl.payment_status, cl.converted_at,
+               (
+                    SELECT au.username 
+                    FROM lead_requirements lr
+                    JOIN users au ON lr.assignee_id = au.id
+                    WHERE lr.converted_lead_id = cl.id
+                    ORDER BY lr.id DESC
+                    LIMIT 1
+               ) as assignee_name
+        FROM converted_leads cl
+        WHERE cl.user_id = :user_id 
+        ORDER BY cl.converted_at DESC
     ");
     $stmt->execute(['user_id' => $user_id]);
     $converted = $stmt->fetchAll();

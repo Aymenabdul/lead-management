@@ -82,9 +82,10 @@ if (!$associate_id) {
             <form id="assignProjectForm">
                 <input type="hidden" name="user_id" value="<?php echo $associate_id; ?>">
                 <div class="form-group">
-                    <label>Project Name</label>
-                    <input type="text" name="project_name" class="form-control" required
-                        placeholder="e.g. Mobile App MVP">
+                    <label>Project Name (Converted Lead)</label>
+                    <select name="project_name" id="assignProjectSelect" class="form-control" required>
+                        <option value="">Loading available leads...</option>
+                    </select>
                 </div>
                 <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div>
@@ -128,7 +129,8 @@ if (!$associate_id) {
                 <input type="hidden" name="project_id" id="editProjectId">
                 <div class="form-group">
                     <label>Project Name</label>
-                    <input type="text" name="project_name" id="editProjectName" class="form-control" required>
+                    <select name="project_name" id="editProjectName" class="form-control" required>
+                    </select>
                 </div>
                 <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div>
@@ -220,6 +222,7 @@ if (!$associate_id) {
 
         document.addEventListener('DOMContentLoaded', () => {
             loadProjects();
+            loadAvailableLeads();
             document.getElementById('assignProjectForm').addEventListener('submit', handleAssignProject);
             document.getElementById('editProjectForm').addEventListener('submit', handleEditProject);
         });
@@ -291,6 +294,11 @@ if (!$associate_id) {
                                 <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border: 1px solid var(--primary); color: var(--primary);" onclick="openEditProject(${proj.id})" title="Edit Project">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
+                                <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border: 1px solid var(--success); color: var(--success);" 
+                                    onclick="window.location.href='/doc_prep.php?project_id=${proj.id}&project_name=${encodeURIComponent(proj.project_name)}'" 
+                                    title="Open Sheet">
+                                    <i class="fa-solid fa-table"></i>
+                                </button>
                             </div>
                         </td>
                     `;
@@ -299,6 +307,43 @@ if (!$associate_id) {
             } catch (err) {
                 console.error(err);
                 showToast('Failed to load projects', 'error');
+            }
+        }
+
+        async function loadAvailableLeads() {
+            try {
+                const res = await fetch('/api/technical_associates.php?mode=available_leads');
+                if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(`Server Error: ${res.status} ${res.statusText} - ${errText}`);
+                }
+                const leads = await res.json();
+
+                if (leads.error) {
+                    throw new Error(leads.error);
+                }
+
+                const select = document.getElementById('assignProjectSelect');
+                select.innerHTML = '<option value="">Select a Converted Lead...</option>';
+
+                if (leads.length === 0) {
+                    const option = document.createElement('option');
+                    option.disabled = true;
+                    option.text = 'No unassigned converted leads found';
+                    select.appendChild(option);
+                    return;
+                }
+
+                leads.forEach(lead => {
+                    const option = document.createElement('option');
+                    option.value = lead.name;
+                    option.textContent = `${lead.name} ${lead.service ? `(${lead.service})` : ''}`;
+                    select.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Error loading available leads:', err);
+                const select = document.getElementById('assignProjectSelect');
+                select.innerHTML = `<option value="">Error: ${err.message}</option>`;
             }
         }
 
@@ -321,6 +366,7 @@ if (!$associate_id) {
                     e.target.reset();
                     document.querySelector('input[name="user_id"]').value = associateId;
                     loadProjects();
+                    loadAvailableLeads();
                 } else {
                     showToast(result.error || 'Failed to assign', 'error');
                 }
@@ -329,12 +375,37 @@ if (!$associate_id) {
             }
         }
 
-        function openEditProject(id) {
+        async function openEditProject(id) {
             const proj = projectsData.find(p => p.id == id);
             if (!proj) return;
 
             document.getElementById('editProjectId').value = proj.id;
-            document.getElementById('editProjectName').value = proj.project_name;
+
+            const select = document.getElementById('editProjectName');
+            // Initial state with current project
+            select.innerHTML = `<option value="${proj.project_name}" selected>${proj.project_name} (Current)</option><option disabled>Loading other options...</option>`;
+
+            try {
+                const res = await fetch('/api/technical_associates.php?mode=available_leads');
+                if (res.ok) {
+                    const leads = await res.json();
+
+                    // Rebuild options with current project + available leads
+                    let html = `<option value="${proj.project_name}" selected>${proj.project_name} (Current)</option>`;
+
+                    if (!leads.error && Array.isArray(leads)) {
+                        leads.forEach(lead => {
+                            html += `<option value="${lead.name}">${lead.name} ${lead.service ? `(${lead.service})` : ''}</option>`;
+                        });
+                    }
+                    select.innerHTML = html;
+                }
+            } catch (e) {
+                console.error("Error fetching leads for edit:", e);
+                // Fallback: just keep the current project as the only option if fetch fails
+                select.innerHTML = `<option value="${proj.project_name}" selected>${proj.project_name}</option>`;
+            }
+
             document.getElementById('editStartDate').value = proj.start_date || '';
             document.getElementById('editEndDate').value = proj.end_date || '';
             document.getElementById('editStatus').value = proj.status;

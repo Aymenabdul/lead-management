@@ -43,11 +43,18 @@ if ($method === 'GET') {
         }
 
         // Fetch project sheet data by project_id AND assignee_id
-        $stmt = $pdo->prepare("SELECT data FROM lead_requirements WHERE converted_lead_id = ? AND assignee_id = ?");
-        $stmt->execute([$project_id, $target_assignee]);
+        // Fetch project sheet data by project_id AND assignee_id
+        // Actually, we want to fetch the LATEST data regardless of assignee query param if we are implementing "Transfer" model fully
+        // But for now keeping it aligned with requested "ownership" logic - fetch ANY existing record to see who owns it
+
+        $stmt = $pdo->prepare("SELECT data, assignee_id FROM lead_requirements WHERE converted_lead_id = ? ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$project_id]);
         $row = $stmt->fetch();
 
-        echo json_encode(['data' => $row ? json_decode($row['data']) : null]);
+        echo json_encode([
+            'data' => $row ? json_decode($row['data']) : null,
+            'assignee' => $row ? $row['assignee_id'] : null
+        ]);
 
     } else {
         // Handle converted lead sheet (original functionality)
@@ -70,22 +77,15 @@ if ($method === 'GET') {
         // Determine target assignee
         $target_assignee = $_GET['assignee_id'] ?? null;
 
-        // Fetch lead sheet data
-        $sql = "SELECT data FROM lead_requirements WHERE converted_lead_id = ?";
-        $params = [$lead_id];
-
-        if ($target_assignee) {
-            $sql .= " AND assignee_id = ?";
-            $params[] = $target_assignee;
-        } else {
-            $sql .= " AND assignee_id IS NULL";
-        }
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
+        // Fetch lead sheet data - find ANY existing record to check ownership
+        $stmt = $pdo->prepare("SELECT data, assignee_id FROM lead_requirements WHERE converted_lead_id = ? ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$lead_id]);
         $row = $stmt->fetch();
 
-        echo json_encode(['data' => $row ? json_decode($row['data']) : null]);
+        echo json_encode([
+            'data' => $row ? json_decode($row['data']) : null,
+            'assignee' => $row ? $row['assignee_id'] : null
+        ]);
     }
 
 } elseif ($method === 'POST') {
@@ -122,15 +122,16 @@ if ($method === 'GET') {
             $target_assignee = $user['user_id'];
         }
 
-        // Check if entry exists for this project_id + assignee_id combination
-        $stmt = $pdo->prepare("SELECT id FROM lead_requirements WHERE converted_lead_id = ? AND assignee_id = ?");
-        $stmt->execute([$project_id, $target_assignee]);
+        // Check if ANY entry exists for this project_id (regardless of assignee)
+        // This implements "Transfer Ownership" logic
+        $stmt = $pdo->prepare("SELECT id FROM lead_requirements WHERE converted_lead_id = ? ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$project_id]);
         $exists = $stmt->fetch();
 
         if ($exists) {
-            // Update existing record
-            $stmt = $pdo->prepare("UPDATE lead_requirements SET data = ? WHERE converted_lead_id = ? AND assignee_id = ?");
-            $stmt->execute([json_encode($data), $project_id, $target_assignee]);
+            // Update existing record (Transfer ownership to new assignee)
+            $stmt = $pdo->prepare("UPDATE lead_requirements SET data = ?, assignee_id = ? WHERE id = ?");
+            $stmt->execute([json_encode($data), $target_assignee, $exists['id']]);
         } else {
             // Insert new record
             $stmt = $pdo->prepare("INSERT INTO lead_requirements (converted_lead_id, assignee_id, data) VALUES (?, ?, ?)");
@@ -160,35 +161,15 @@ if ($method === 'GET') {
         // Determine target assignee
         $target_assignee = $input['assignee_id'] ?? null;
 
-        // Check if entry exists for this lead_id + assignee_id combination
-        $sql = "SELECT id FROM lead_requirements WHERE converted_lead_id = ?";
-        $params = [$lead_id];
-
-        if ($target_assignee) {
-            $sql .= " AND assignee_id = ?";
-            $params[] = $target_assignee;
-        } else {
-            $sql .= " AND assignee_id IS NULL";
-        }
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
+        // Check if ANY entry exists for this lead_id
+        $stmt = $pdo->prepare("SELECT id FROM lead_requirements WHERE converted_lead_id = ? ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$lead_id]);
         $exists = $stmt->fetch();
 
         if ($exists) {
-            // Update existing record
-            $sql = "UPDATE lead_requirements SET data = ? WHERE converted_lead_id = ?";
-            $params = [json_encode($data), $lead_id];
-
-            if ($target_assignee) {
-                $sql .= " AND assignee_id = ?";
-                $params[] = $target_assignee;
-            } else {
-                $sql .= " AND assignee_id IS NULL";
-            }
-
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
+            // Update existing record (Transfer)
+            $stmt = $pdo->prepare("UPDATE lead_requirements SET data = ?, assignee_id = ? WHERE id = ?");
+            $stmt->execute([json_encode($data), $target_assignee, $exists['id']]);
         } else {
             // Insert new record
             $stmt = $pdo->prepare("INSERT INTO lead_requirements (converted_lead_id, assignee_id, data) VALUES (?, ?, ?)");
